@@ -15,11 +15,28 @@
 # along with this program.  If not, see https://librearp.gitlab.io/license/.
 #
 
+# BUILDING
+# cmake -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake . -B cmake-build
+# cmake --build cmake-build --target help
+# cmake --build cmake-build --config Release --target LibreArp_VST3
+
 set(LIBREARP_VERSION "2.5")
 set(LIBREARP_VERSION_CODE "020500")
 
 cmake_minimum_required(VERSION 3.16)
 project(LibreArp VERSION ${LIBREARP_VERSION})
+
+# on macOS Sonoma and LLVM Clang 17.0.6, CMake invokes `ar` and `ranlib` under `/usr/bin` which causes corrupt libs.
+# force the use of `llvm-ar` and `llvm-ranlib` if we are using LLVM
+# export LLVM=$(brew --prefix llvm)
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    message("LLVM : $ENV{LLVM}")
+    set(CMAKE_AR "$ENV{LLVM}/bin/llvm-ar" CACHE FILEPATH "LLVM ar" FORCE)
+    set(CMAKE_RANLIB "$ENV{LLVM}/bin/llvm-ranlib" CACHE FILEPATH "LLVM ranlib" FORCE)
+    message("AR : ${CMAKE_AR}")
+    message("RANLIB : ${CMAKE_RANLIB}")
+endif ()
+
 
 add_definitions(
         -DLIBREARP_VERSION=\"${LIBREARP_VERSION}\"
@@ -31,7 +48,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC" )
 endif()
 
-add_subdirectory(Vendor/juce)
+find_package(JUCE CONFIG REQUIRED)
 
 juce_add_binary_data(LibreArpBinaries
         HEADER_NAME LibreArpBinaryData.h
@@ -39,7 +56,7 @@ juce_add_binary_data(LibreArpBinaries
         SOURCES Fonts/overpass-regular.otf)
 
 juce_add_plugin(LibreArp
-        COMPANY_NAME "The LibreArp contributors"
+        COMPANY_NAME "LibreArp"
         IS_SYNTH TRUE
         NEEDS_MIDI_INPUT TRUE
         NEEDS_MIDI_OUTPUT TRUE
@@ -49,7 +66,7 @@ juce_add_plugin(LibreArp
         VST3_CATEGORIES "Fx Instrument Tools"
         AU_MAIN_TYPE "kAudioUnitType_MIDIProcessor"
         EDITOR_WANTS_KEYBOARD_FOCUS TRUE
-        COPY_PLUGIN_AFTER_BUILD FALSE
+        COPY_PLUGIN_AFTER_BUILD TRUE
         PLUGIN_MANUFACTURER_CODE Larx
         PLUGIN_CODE Larx
         FORMATS AU VST3 Standalone
